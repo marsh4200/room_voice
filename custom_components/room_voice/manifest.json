@@ -1,7 +1,7 @@
 {
   "domain": "room_voice",
   "name": "Room voice",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "config_flow": true,
   "codeowners": [],
   "dependencies": ["conversation", "http", "frontend", "panel_custom", "websocket_api"],

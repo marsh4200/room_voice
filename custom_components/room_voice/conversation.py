@@ -60,7 +60,9 @@ class RoomVoiceAgent(conversation.ConversationEntity):
         if not match.items:
             return self._reply(user_input, f"There's nothing like that set up in {match.room['name']}.")
         try:
-            return self._reply(user_input, await self._run(match, user_input))
+            done, text = await self._run(match, user_input)
+            custom = data.get("reply", "Okay")
+            return self._reply(user_input, custom if done and custom else text)
         except Exception:
             _LOGGER.exception("Room voice could not run: %s", user_input.text)
             return self._reply(user_input, "Something went wrong doing that.", error=True)
@@ -84,7 +86,9 @@ class RoomVoiceAgent(conversation.ConversationEntity):
                 domain, service, {"entity_id": entity_ids, **data}, blocking=True, context=context
             )
 
-    async def _run(self, match: Match, user_input) -> str:
+    async def _run(self, match: Match, user_input) -> tuple[bool, str]:
+        """Do it. Returns (worked, sentence describing what happened)."""
+        what = match.label.lower()
         ctx = user_input.context
         ids = [it["entity_id"] for it in match.items]
 
@@ -105,27 +109,27 @@ class RoomVoiceAgent(conversation.ConversationEntity):
                         "cover", "open_cover" if match.action == "on" else "close_cover", covers, ctx
                     )
                 else:
-                    return f"I can't turn {match.action} {match.label}."
-            return f"{match.label} {match.action}."
+                    return False, f"I can't turn {match.action} the {what}."
+            return True, f"Turned {match.action} the {what}."
 
         if match.action in ("open", "close"):
             if not covers:
-                return f"There's nothing to {match.action} in {match.label}."
+                return False, f"There's nothing to {match.action} there."
             await self._call("cover", f"{match.action}_cover", covers, ctx)
-            return f"{match.label} {'opened' if match.action == 'open' else 'closed'}."
+            return True, f"{'Opened' if match.action == 'open' else 'Closed'} the {what}."
 
         if match.action == "brightness":
             lights = of("light")
             if not lights:
-                return f"{match.label} can't be dimmed."
+                return False, f"The {what} can't be dimmed."
             await self._call("light", "turn_on", lights, ctx, brightness_pct=match.value)
-            return f"{match.label} set to {match.value} percent."
+            return True, f"Set the {what} to {match.value} percent."
 
         if match.action == "temperature":
             climates = of("climate")
             if not climates:
-                return f"There's no aircon set up in {match.label}."
+                return False, "There's no aircon set up there."
             await self._call("climate", "set_temperature", climates, ctx, temperature=match.value)
-            return f"{match.label} set to {match.value} degrees."
+            return True, f"Set the {what} to {match.value} degrees."
 
-        return "I can't do that yet."
+        return False, "I can't do that yet."

@@ -35,6 +35,7 @@ ROOM_SCHEMA = vol.Schema(
 CONFIG_SCHEMA_WS = vol.Schema(
     {
         vol.Optional("fallback", default=""): cv.string,
+        vol.Optional("reply", default="Okay"): cv.string,
         vol.Optional("rooms", default=list): [ROOM_SCHEMA],
     }
 )

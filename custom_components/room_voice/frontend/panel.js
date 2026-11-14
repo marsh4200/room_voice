@@ -79,6 +79,8 @@ button.x{border:0;padding:0 6px;color:var(--secondary-text-color)}
       <option value="">Nothing, say it wasn't understood</option>
       ${this._agents.map((a) => `<option value="${esc(a.id)}" ${a.id === c.fallback ? "selected" : ""}>${esc(a.name)}</option>`).join("")}
     </select>
+    <div class="dim" style="margin:12px 0 6px">What it says when it's done. Leave empty to have it say what it did.</div>
+    <input data-f="reply" style="width:100%" value="${esc(c.reply == null ? "Okay" : c.reply)}" placeholder="Turned off the kitchen downlights">
   </div>
   ${c.rooms.map((r, ri) => this._room(r, ri)).join("")}
   <div class="card row">
@@ -141,6 +143,7 @@ button.x{border:0;padding:0 6px;color:var(--secondary-text-color)}
     if (!f || f === "search") return;
     const r = c.rooms[Number(t.dataset.r)], it = r && r.items[Number(t.dataset.i)];
     if (f === "fallback") c.fallback = t.value;
+    else if (f === "reply") c.reply = t.value.trim();
     else if (f === "rname") r.name = t.value.trim() || r.name;
     else if (f === "raliases") r.aliases = split(t.value);
     else if (f === "iname") it.name = t.value.trim() || it.name;
