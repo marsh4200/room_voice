@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Room voice",
+        "description": "Adds a voice agent that uses your own room and item names. After setup, open Room voice in the sidebar to add your rooms."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Room voice is already set up."
+    }
+  }
+}
