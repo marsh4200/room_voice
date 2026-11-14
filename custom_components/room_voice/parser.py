@@ -41,11 +41,30 @@ def norm(text: str) -> str:
 
 
 def _find(name: str, text: str):
-    words = norm(name).split()
-    if not words:
+    # Ignore spacing and a plural "s", so "Downlights", "down light" and
+    # "down lights" are all the same name.
+    chars = norm(name).replace(" ", "")
+    if len(chars) > 3 and chars.endswith("s"):
+        chars = chars[:-1]
+    if not chars:
         return None
-    pat = r"\b" + r"\s*".join(re.escape(w) for w in words) + r"s?\b"
+    pat = r"\b" + r"\s*".join(re.escape(c) for c in chars) + r"s?\b"
     return re.search(pat, text)
+
+
+# Words that carry no meaning about which item is wanted.
+FILLER = set(
+    "turn switch put set make off on open close shut the my a an all every everything "
+    "in of to at for and please can could would you now me up it its is s room rooms "
+    "hey ok okay nabu percent degrees degree".split()
+)
+
+
+def _leftover(rest: str) -> list[str]:
+    return [
+        w for w in rest.split()
+        if w not in FILLER and w not in TYPE_WORDS and not re.fullmatch(r"[\d%°]+", w)
+    ]
 
 
 def _best(names: list[str], text: str):
@@ -106,7 +125,14 @@ def parse(text: str, rooms: list[dict]) -> Match | None:
     found = []
     for r in [room] if room else rooms:
         for it in r.get("items", []):
-            m = _best(_names(it), rest) or (_best(_names(it), text) if room else None)
+            names = _names(it)
+            # "Kitchen Pendant" should also answer to plain "pendant".
+            for rn in _names(r):
+                for n in _names(it):
+                    short = re.sub(r"^\s*" + re.escape(rn) + r"\s+", "", n, flags=re.I)
+                    if short and short != n:
+                        names.append(short)
+            m = _best(names, rest) or (_best(names, text) if room else None)
             if m:
                 found.append((len(m.group()), r, it))
 
@@ -119,10 +145,18 @@ def parse(text: str, rooms: list[dict]) -> Match | None:
             return Match(action, value, ask=f"Which room? I have that in {names}.")
         r = best[0][1]
         items = [f[2] for f in best]
-        return Match(action, value, r, items, f"{r['name']} {items[0]['name']}")
+        iname = items[0]["name"]
+        label = iname if iname.lower().startswith(r["name"].lower()) else f"{r['name']} {iname}"
+        return Match(action, value, r, items, label)
 
     if room is None:
         return None
+
+    # A word we don't know ("turn off the kitchen pendant") means a specific
+    # item was asked for. Never fall back to switching the whole room.
+    extra = _leftover(rest)
+    if extra:
+        return Match(action, value, ask=f"I don't have {' '.join(extra)} set up in {room['name']}.")
 
     kind = next((TYPE_WORDS[w] for w in rest.split() if w in TYPE_WORDS), None)
     items = list(room.get("items", []))
